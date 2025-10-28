@@ -1,6 +1,7 @@
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
-pydantic==2.6.0
+# Use a recent pydantic release with matching pydantic-core wheels
+pydantic==2.41.4
 python-dotenv==1.0.0
 python-multipart==0.0.6
 httpx==0.26.0
@@ -9,7 +10,9 @@ google-auth==2.26.0
 google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 google-api-python-client==2.108.0
-pinecone-client==4.1.1
+# Use a released pinecone-client version available on PyPI
+pinecone-client==5.0.1
 supabase==2.3.4
 gunicorn==21.2.0
-cryptography==42.0.0
+# cryptography provides wheels; pin to a modern release
+cryptography==41.0.4
