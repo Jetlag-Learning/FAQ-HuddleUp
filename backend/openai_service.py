@@ -2,6 +2,7 @@ import os
 import openai
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
+from semantic_search import semantic_search_service
 
 load_dotenv()
 
@@ -25,15 +26,34 @@ class OpenAIService:
     
     def generate_faq_response(self, question: str, knowledge_base_results: Dict = None) -> str:
         """
-        Generate a discovery-focused response using knowledge base context
-        Combines KB information with discovery conversation approach
+        Generate a discovery-focused response using Pinecone vector search results
         """
         if not self.client:
             raise Exception("OpenAI service not available")
         
         try:
-            # Build context from knowledge base results
-            context = self._build_comprehensive_context(knowledge_base_results) if knowledge_base_results else ""
+            # Get relevant content from Pinecone
+            search_results = semantic_search_service.semantic_search(question, similarity_threshold=0.3)
+            
+            # Build context from search results
+            context = ""
+            if search_results.get("success") and search_results.get("results"):
+                context = "Relevant Knowledge Base Information:\n\n"
+                for result in search_results["results"][:3]:  # Use top 3 most relevant results
+                    source_type = result.get('source_type', 'Unknown')
+                    title = result.get('title', '')
+                    metadata = result.get('metadata', {})
+                    
+                    # Get content from various possible fields
+                    content = (result.get('content') or 
+                             result.get('text') or 
+                             metadata.get('content') or 
+                             metadata.get('answer') or 
+                             '')
+                    
+                    if content:
+                        context += f"Source: {source_type} - {title}\n"
+                        context += f"Content: {content}\n\n"
             
             system_prompt = f"""You are the HuddleUp AI Assistant conducting discovery conversations about learning collaboration.
 
@@ -83,25 +103,27 @@ Remember: You're not just answering questions - you're building understanding an
 
     def generate_direct_response(self, question: str) -> str:
         """
-        Generate a direct response using OpenAI for discovery conversations
-        Focuses on understanding visitor context and guiding them to relevant solutions
+        Generate a direct response using Pinecone semantic search and OpenAI
+        Uses vector search to find relevant content and generate contextual responses
         """
         if not self.client:
             raise Exception("OpenAI service not available")
         
         try:
-            system_prompt = """You are the HuddleUp AI Assistant, an intelligent discovery agent for HuddleUp's learning collaboration platform.
+            # Get relevant content from Pinecone
+            search_results = semantic_search_service.semantic_search(question, similarity_threshold=0.3)
+            context = self._build_context_from_search_results(search_results)
+            
+            system_prompt = f"""You are the HuddleUp AI Assistant, an intelligent discovery agent for HuddleUp's learning collaboration platform.
 
 YOUR MISSION: Help visitors understand how HuddleUp can transform their learning and collaboration processes through guided discovery conversations.
 
-ABOUT HUDDLEUP:
-HuddleUp creates "learning huddles" - interactive collaboration spaces where teams learn together more effectively than traditional training methods. Key benefits:
-• Interactive learning experiences with higher engagement
-• Better knowledge retention through peer collaboration  
-• Scalable training solutions that grow with your team
-• Breaking down silos between departments
-• Real-time collaboration and knowledge sharing
-• Analytics to track learning progress and engagement
+KNOWLEDGE BASE CONTEXT:
+{context}
+
+Use the above knowledge base context to provide accurate, specific answers. If the context doesn't contain enough information for a specific question, use the general guidelines below:
+
+GENERAL INFORMATION:
 
 TARGET USERS: L&D professionals, team leaders, trainers, educators, HR managers, consultants, and anyone who wants to improve how their team learns and collaborates.
 
@@ -151,53 +173,24 @@ REMEMBER: This isn't just FAQ - you're conducting a discovery conversation that 
             print(f"Error generating direct OpenAI response: {e}")
             raise e
     
-    def _build_context(self, faqs: List[Dict]) -> str:
-        """Build context string from existing FAQ entries"""
-        if not faqs:
+    def _build_context_from_search_results(self, search_results: Dict) -> str:
+        """Build context string from Pinecone search results"""
+        if not search_results or not search_results.get("success") or not search_results.get("results"):
             return ""
         
-        context = "Existing FAQ information:\n"
-        for faq in faqs:
-            context += f"Q: {faq.get('question', '')}\n"
-            context += f"A: {faq.get('answer', '')}\n\n"
-        
-        return context
-    
-    def _build_comprehensive_context(self, kb_results: Dict) -> str:
-        """Build context string from comprehensive knowledge base results"""
-        if not kb_results:
-            return ""
-        
-        context = "Knowledge Base Information:\n\n"
-        
-        # Add FAQ entries
-        faq_entries = kb_results.get('faq_entries', [])
-        if faq_entries:
-            context += "=== FAQ Entries ===\n"
-            for faq in faq_entries:
-                context += f"Q: {faq.get('question', '')}\n"
-                context += f"A: {faq.get('answer', '')}\n\n"
-        
-        # Add documents
-        documents = kb_results.get('documents', [])
-        if documents:
-            context += "=== Documents ===\n"
-            for doc in documents:
-                context += f"Title: {doc.get('title', '')}\n"
-                content = doc.get('content', '')
-                # Truncate content if too long
-                if len(content) > 500:
-                    content = content[:500] + "..."
-                context += f"Content: {content}\n\n"
-        
-        # Add document chunks
-        chunks = kb_results.get('document_chunks', [])
-        if chunks:
-            context += "=== Relevant Content Sections ===\n"
-            for chunk in chunks:
-                doc_title = chunk.get('documents', {}).get('title', 'Unknown Document')
-                chunk_content = chunk.get('content', '')
-                context += f"From '{doc_title}': {chunk_content}\n\n"
+        context = "Relevant Knowledge Base Information:\n\n"
+        for result in search_results["results"]:
+            source_type = result.get('source_type', '')
+            title = result.get('title', '')
+            content = (result.get('content') or 
+                      result.get('text') or 
+                      result.get('metadata', {}).get('content') or 
+                      result.get('metadata', {}).get('answer') or 
+                      '')
+            
+            if content:
+                context += f"=== {source_type.upper()} - {title} ===\n"
+                context += f"{content}\n\n"
         
         return context
     
@@ -362,16 +355,29 @@ RESPONSE FORMAT: Return a JSON object with:
 
 AVAILABLE ACTIONS - PROGRESSIVE ENGAGEMENT:
 
-INITIAL ENGAGEMENT (Queries 1-4):
-- {{"type": "questions", "label": "Ask more questions", "description": "Continue exploring HuddleUp features and capabilities"}}
-- {{"type": "solution_preview", "label": "Explore HuddleUp Solution Preview", "description": "See a tailored preview of how HuddleUp works for your specific needs"}}
+RESPONSE GUIDANCE:
+Instead of buttons, weave these options naturally into the conversation:
 
-FULL ENGAGEMENT (Queries 5+):
-- {{"type": "calendar", "label": "Find a time to meet with Derek", "description": "Schedule a personalized demo with our learning collaboration expert"}}
-- {{"type": "solution_preview", "label": "Explore HuddleUp Solution Preview", "description": "See a tailored preview of how HuddleUp works for your specific needs"}}
-- {{"type": "process_analysis", "label": "See how your processes could work in HuddleUp", "description": "Discover specific improvements for your current workflows"}}
-- {{"type": "research", "label": "Receive research on HuddleUp benefits", "description": "Get data on problems HuddleUp solves in your industry"}}
-- {{"type": "questions", "label": "Ask more questions", "description": "Continue exploring HuddleUp features and capabilities"}}
+1. For scheduling demos:
+   "Would you like to schedule a quick demo with Derek to see HuddleUp in action?"
+
+2. For showing examples:
+   "Would you like to see some specific examples of how HuddleUp works? Or shall we explore other aspects?"
+
+USE CASES TO COVER:
+1. Extending in-person workshops into collaborative action
+2. Extending online courses into collaborative action
+3. Extending webinars for next steps
+4. Helping teams implement strategic goals
+
+CONVERSATION TRIGGERS:
+- When user mentions workshops: Explain how HuddleUp extends the impact beyond the session
+- When user mentions courses: Describe how HuddleUp transforms traditional courses into collaborative experiences
+- When user mentions implementation: Focus on how HuddleUp tracks and supports actual application
+- When user mentions current practices: Acknowledge common challenges and explain HuddleUp's unique approach
+
+Only show calendar booking option:
+{{"type": "calendar", "label": "Schedule a Demo with Derek", "description": "See HuddleUp in action with our learning collaboration expert"}}
 
 ACTION SELECTION RULES:
 - ALWAYS include "questions" as an option
@@ -387,12 +393,24 @@ ENGAGEMENT TRANSITION MESSAGE:
 - Say something like: "I can see you're genuinely interested in exploring HuddleUp! Since we've been chatting, I'd love to offer you some additional ways to dive deeper..."
 
 CONVERSATION STYLE:
-- Be genuinely curious about their specific situation
-- Ask ONE focused follow-up question at a time
-- Use their context to make responses highly relevant
-- Avoid being pushy - build understanding first
-- Reference their previous comments when relevant
-- Progressive disclosure: Start simple, build complexity
+- Focus on understanding their current practices and challenges first
+- Demonstrate deep knowledge of common challenges in their space
+- Explain specifically how HuddleUp addresses their unique situation
+- Share relevant use case examples that match their context
+- Ask thoughtful follow-up questions about their implementation goals
+- Naturally suggest a demo when the conversation indicates strong interest
+
+KEY DIFFERENTIATORS TO EMPHASIZE:
+- Post-training collaboration and implementation tracking
+- Building a bank of real-world practices from the team
+- Peer feedback with both qualitative and quantitative insights
+- Reduced meeting time through structured asynchronous collaboration
+- Measurable ROI through implementation success tracking
+
+EXAMPLE NATURAL PROMPTS:
+- "Would you like to see how other organizations have implemented this in HuddleUp?"
+- "I'd be happy to show you some specific examples of how this works in practice."
+- "Would you like to schedule a quick demo to see these features in action?"
 
 Return ONLY valid JSON in this format:
 {{"response": "Your response text here", "actions": [action objects]}}"""
