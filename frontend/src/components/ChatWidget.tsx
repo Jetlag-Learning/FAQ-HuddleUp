@@ -303,7 +303,7 @@ export const ChatWidget: React.FC<{}> = () => {
   }
 
   return (
-    <div className={`fixed bottom-6 right-6 bg-white rounded-2xl shadow-2xl z-50 transition-all duration-300 overflow-hidden ${isMinimized ? 'w-[360px] h-[580px]' : 'h-[600px] w-96'}`}>
+    <div className={`fixed bottom-6 right-6 rounded-2xl shadow-2xl z-50 transition-all duration-300 overflow-hidden ${isMinimized ? 'w-[360px] h-[580px]' : 'h-[600px] w-96'}`} style={{background: 'transparent'}}>
       {/* Minimized View */}
       {isMinimized ? (
         <div className="relative w-[360px] h-[580px] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-white">
@@ -345,7 +345,7 @@ export const ChatWidget: React.FC<{}> = () => {
           </div>
 
           {/* Footer */}
-          <div className="mt-auto bg-white text-gray-700 pt-10 pb-4 px-4">
+          <div className="mt-auto text-gray-700 pt-10 pb-4 px-4" style={{background: 'transparent'}}>
             {/* NOTE: Removed “feature tabs” that might feel like static options. Kept lightweight brand line. */}
             <div className="border-t pt-2">
               <p className="text-[11px] text-gray-500 text-center tracking-wide">
