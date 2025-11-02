@@ -1,0 +1,73 @@
+{
+    "core_components": {
+        "ready": {
+            "description": "The Ready phase is where users create and share content, like courses, training materials, or best practices. This is the preparation and content creation stage.",
+            "features": [
+                "Create interactive training content",
+                "Upload existing materials",
+                "Set learning objectives",
+                "Design assessment criteria"
+            ]
+        },
+        "run": {
+            "description": "The Run phase is where the actual training or learning experience happens. This could be synchronous (like a workshop) or asynchronous self-paced learning.",
+            "features": [
+                "Deliver training content",
+                "Facilitate discussions",
+                "Track participation",
+                "Real-time collaboration"
+            ]
+        },
+        "huddle": {
+            "description": "The Huddle phase is what makes us unique - it's the post-training collaboration space where participants apply what they learned, share experiences, and learn from each other's implementations.",
+            "features": [
+                "Share implementation examples",
+                "Peer feedback and reviews",
+                "Track ROI through applied learning",
+                "Build a knowledge bank of real practices",
+                "Collect qualitative and quantitative data on what's working"
+            ]
+        }
+    },
+    "unique_value_props": {
+        "post_training_focus": {
+            "description": "HuddleUp's unique strength is what happens AFTER the training or course. We focus on helping users apply what they learn and share their experiences with peers.",
+            "benefits": [
+                "Higher ROI on training investments",
+                "Continuous learning through peer experiences",
+                "Building a searchable knowledge bank of real practices",
+                "Data-driven insights on implementation success",
+                "Asynchronous collaboration after face-to-face sessions"
+            ]
+        },
+        "peer_learning": {
+            "description": "Teams build a bank of practices as they each share, with peer feedback that is both qualitative and quantitative.",
+            "features": [
+                "Structured peer review process",
+                "Implementation sharing templates",
+                "Success metrics tracking",
+                "Best practice repositories",
+                "Community-driven knowledge base"
+            ]
+        }
+    },
+    "example_use_case": {
+        "workshop_enhancement": {
+            "before": "Traditional one-day workshop with PowerPoint and group activities",
+            "after": "Enhanced learning experience where participants:",
+            "benefits": [
+                "Continue collaborating after the workshop",
+                "Share how they're implementing the learning",
+                "Get feedback from peers on their implementations",
+                "Access a growing bank of successful practices",
+                "Track both individual and cohort progress",
+                "Measure actual implementation success"
+            ]
+        }
+    },
+    "interview_highlights": {
+        "vision": "We believe the real value of training comes from what happens after the session - when people actually apply what they learned.",
+        "differentiator": "Unlike traditional platforms that focus just on content delivery, we create a space for teams to learn from each other's real-world implementations.",
+        "roi_focus": "Our platform helps organizations track not just completion rates, but actual implementation success through peer feedback and data collection."
+    }
+}

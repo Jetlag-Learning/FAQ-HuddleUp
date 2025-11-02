@@ -1,0 +1,92 @@
+{
+    "use_cases": {
+        "workshop_extension": {
+            "current_practice": {
+                "description": "Traditional in-person workshops typically end when the session ends",
+                "challenges": [
+                    "Limited time for practice and implementation",
+                    "No way to track what participants actually do with the learning",
+                    "Loss of group momentum after the workshop",
+                    "Difficulty sharing success stories and challenges",
+                    "No ongoing peer support"
+                ]
+            },
+            "huddleup_solution": {
+                "description": "HuddleUp extends workshop impact through structured post-session collaboration",
+                "benefits": [
+                    "Participants share implementation examples",
+                    "Peer feedback on real applications",
+                    "Growing knowledge bank of successful practices",
+                    "Measurable implementation tracking",
+                    "Asynchronous collaboration that fits busy schedules"
+                ]
+            }
+        },
+        "online_course_extension": {
+            "current_practice": {
+                "description": "Traditional online courses focus on content consumption and quizzes",
+                "challenges": [
+                    "Low completion rates",
+                    "Limited peer interaction",
+                    "No real-world implementation support",
+                    "Difficulty measuring actual impact",
+                    "Generic content without contextual application"
+                ]
+            },
+            "huddleup_solution": {
+                "description": "HuddleUp transforms courses into collaborative learning experiences",
+                "benefits": [
+                    "Peer learning and support throughout the course",
+                    "Implementation sharing and feedback",
+                    "Real-world application examples",
+                    "Community-driven knowledge base",
+                    "ROI tracking through implementation success"
+                ]
+            }
+        },
+        "webinar_extension": {
+            "current_practice": {
+                "description": "Webinars typically end with Q&A and little follow-up",
+                "challenges": [
+                    "Limited engagement after the session",
+                    "No implementation support",
+                    "Missed opportunities for peer learning",
+                    "Difficulty tracking impact",
+                    "Lost momentum"
+                ]
+            },
+            "huddleup_solution": {
+                "description": "HuddleUp creates ongoing value from webinar content",
+                "benefits": [
+                    "Structured follow-up activities",
+                    "Implementation sharing space",
+                    "Peer support and feedback",
+                    "Success story collection",
+                    "Measurable impact tracking"
+                ]
+            }
+        },
+        "strategic_implementation": {
+            "current_practice": {
+                "description": "Teams struggle to implement strategic initiatives consistently",
+                "challenges": [
+                    "Inconsistent implementation across teams",
+                    "Limited visibility into progress",
+                    "Difficulty sharing successful approaches",
+                    "Too many meetings required",
+                    "Loss of momentum over time"
+                ]
+            },
+            "huddleup_solution": {
+                "description": "HuddleUp provides a structured space for strategic implementation",
+                "benefits": [
+                    "Clear implementation tracking",
+                    "Best practice sharing",
+                    "Reduced meeting time through asynchronous collaboration",
+                    "Data-driven progress monitoring",
+                    "Peer learning and support"
+                ]
+            }
+        }
+    }
+}
