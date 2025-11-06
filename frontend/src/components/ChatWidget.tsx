@@ -1,10 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, X, Minus, Maximize2, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Send, MessageCircle, X, Minus, Maximize2, Copy, ThumbsUp, ThumbsDown, Calendar } from 'lucide-react';
 import { Message } from '../types/chat';
 import { chatService } from '../services/chatService';
 
-export const ChatWidget: React.FC<{}> = () => {
-  const [isOpen, setIsOpen] = useState(false);
+interface ChatWidgetProps {
+  embedded?: boolean;
+  defaultOpen?: boolean;
+}
+
+export const ChatWidget: React.FC<ChatWidgetProps> = ({ embedded = false, defaultOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -21,6 +26,47 @@ export const ChatWidget: React.FC<{}> = () => {
   const focusInput = () => {
     setTimeout(() => { if (inputRef.current && !isLoading) inputRef.current.focus(); }, 100);
   };
+
+  // Function to detect if message contains scheduling-related keywords
+  const detectSchedulingIntent = (text: string): boolean => {
+    const exactSchedulingPhrases = [
+      'can i talk to someone', 'can i speak to someone', 'can i speak with someone',
+      'i want to talk to someone', 'i need to talk to someone',
+      'can i schedule a meeting', 'can i book a meeting', 'can i schedule a call', 'can i book a call',
+      'i want to schedule', 'i want to book', 'i need to schedule', 'i need to book',
+      'schedule a demo', 'book a demo', 'schedule an appointment', 'book an appointment',
+      'talk to a person', 'speak to a person', 'contact someone from your team',
+      'can someone call me', 'can i get a call', 'set up a meeting', 'arrange a call',
+      'schedule a meeting', 'book a meeting', 'schedule a call', 'book a call'
+    ];
+    
+    const lowerText = text.toLowerCase();
+    
+    // Only trigger if the text contains exact scheduling phrases
+    return exactSchedulingPhrases.some(phrase => lowerText.includes(phrase)) ||
+           // Allow some flexibility for common variations
+           (lowerText.includes('schedule') && lowerText.includes('meeting')) ||
+           (lowerText.includes('book') && lowerText.includes('meeting')) ||
+           (lowerText.includes('schedule') && lowerText.includes('call')) ||
+           (lowerText.includes('book') && lowerText.includes('call')) ||
+           (lowerText.includes('talk to') && lowerText.includes('someone')) ||
+           (lowerText.includes('speak to') && lowerText.includes('someone')) ||
+           (lowerText.includes('speak with') && lowerText.includes('someone'));
+  };  // Component for Schedule Meeting Button
+  const ScheduleMeetingButton = () => (
+    <div className="mt-3 mb-2">
+      <button
+        onClick={() => window.open('https://calendly.com/d/cq2w-3fm-krb/huddle-up-intro-call', '_blank')}
+        className="inline-flex items-center gap-2 bg-[#182978] hover:bg-[#14205F] text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+      >
+        <Calendar size={16} />
+        Schedule a Meeting
+      </button>
+      <p className="text-xs text-gray-500 mt-1">
+        Book a time that works for you to discuss HuddleUp
+      </p>
+    </div>
+  );
 
   const formatMessage = (text: string) =>
     text
@@ -87,9 +133,7 @@ export const ChatWidget: React.FC<{}> = () => {
       setIsLoading(false);
       focusInput();
     }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  };  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -110,6 +154,156 @@ export const ChatWidget: React.FC<{}> = () => {
     setIsMinimized(true);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
+
+  // ---------------------------
+  // RENDER
+  // ---------------------------
+
+  // For embedded mode, return the full-screen chat directly
+  if (embedded) {
+    return (
+      <div className="h-screen w-full bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl border border-gray-200 hover:border-[#182978] transition-colors duration-200 flex flex-col h-full max-h-[600px] w-full max-w-4xl overflow-hidden shadow-lg">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 text-left truncate">
+                  HuddleUp Agent
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">
+                  Connect with our AI assistant for personalized support on your HuddleUp journey.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col bg-gray-50 min-h-0 rounded-xl overflow-hidden">
+            <div className="flex-1 overflow-y-auto min-h-0 scroll-smooth [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-400">
+              <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 flex flex-col">
+                {messages
+                  .filter(msg => !(msg.sender === 'bot' && (msg.text.includes('Hi there 👋') || msg.text.includes('Please introduce yourself'))))
+                  .map((message) => (
+                    <div
+                      key={message.id}
+                      className={`group flex gap-2 sm:gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      onMouseEnter={() => setHoveredMessage(message.id)}
+                      onMouseLeave={() => setHoveredMessage(null)}
+                    >
+                      {message.sender === 'bot' && (
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#ffffff] rounded-full items-center justify-center flex-shrink-0 self-start hidden sm:flex">
+                          <img src="/favicon1.png" alt="HuddleUp" className="w-6 sm:w-8 h-6 sm:h-8 object-contain" />
+                        </div>
+                      )}
+
+                      <div className={`max-w-[85%] sm:max-w-[70%] ${message.sender === 'user' ? 'order-1' : ''}`}>
+                        <div
+                          className={`p-3 sm:p-4 rounded-2xl text-left text-xs sm:text-sm ${message.sender === 'user'
+                              ? 'bg-[#182978] text-white rounded-br-md'
+                              : message.isSystemMessage
+                                ? 'bg-gradient-to-r from-[#18297810] to-[#14205F10] text-gray-800 rounded-bl-md border border-[#182978] shadow-sm'
+                                : 'bg-white text-gray-800 rounded-bl-md border border-gray-200 shadow-sm'
+                            }`}
+                        >
+                          <div className="leading-relaxed" dangerouslySetInnerHTML={{ __html: formatMessage(message.text) }} />
+                          {message.sender === 'bot' && detectSchedulingIntent(message.text) && (
+                            <ScheduleMeetingButton />
+                          )}
+                        </div>
+
+                        {hoveredMessage === message.id && (
+                          <div className={`flex items-center gap-1 mt-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <button
+                              onClick={() => copyMessage(message.text)}
+                              className="text-gray-400 hover:text-gray-600 p-1 rounded transition-colors"
+                              title="Copy message"
+                            >
+                              <Copy size={12} />
+                            </button>
+                            {message.sender === 'bot' && (
+                              <>
+                                <button className="text-gray-400 hover:text-[#182978] p-1 rounded transition-colors" title="Good response">
+                                  <ThumbsUp size={12} />
+                                </button>
+                                <button className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors" title="Poor response">
+                                  <ThumbsDown size={12} />
+                                </button>
+                              </>
+                            )}
+                            <span className="text-xs text-gray-400">
+                              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {message.sender === 'user' && (
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-300 rounded-full items-center justify-center flex-shrink-0 hidden sm:flex">
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                {isLoading && (
+                  <div className="flex justify-start gap-2 sm:gap-3">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#e2e2e2] rounded-full items-center justify-center flex-shrink-0 self-start hidden sm:flex">
+                      <img src="/favicon1.png" alt="HuddleUp" className="w-6 sm:w-8 h-6 sm:h-8 object-contain" />
+                    </div>
+                    <div className="bg-white border border-gray-200 p-3 sm:p-4 rounded-2xl rounded-bl-md shadow-sm">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            {/* Input Area */}
+            <div className="border-t border-gray-200 bg-white p-2 sm:p-4 flex-shrink-0 shadow-lg relative z-20">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={inputRef}
+                    value={inputMessage}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    onClick={() => inputRef.current?.focus()}
+                    placeholder="Ask me anything..."
+                    className="w-full border border-gray-300 rounded-lg px-2 sm:px-3 py-2 pr-8 sm:pr-10 focus:outline-none focus:ring-2 focus:ring-[#182978] focus:border-transparent text-xs sm:text-sm resize-none transition-all duration-200 bg-white shadow-sm"
+                    disabled={isLoading}
+                    rows={1}
+                    style={{ minHeight: '36px', maxHeight: '100px' }}
+                    tabIndex={0}
+                    autoFocus={true}
+                  />
+                  <div className="absolute right-1 bottom-1 text-xs text-gray-400">
+                    {inputMessage.length > 0 && `${inputMessage.length}/1000`}
+                  </div>
+                </div>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isLoading || inputMessage.trim() === ''}
+                  className="bg-[#182978] hover:bg-[#14205F] disabled:bg-gray-400 text-white p-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 h-9 sm:h-10 w-9 sm:w-10"
+                  aria-label="Send message"
+                >
+                  <Send size={14} className={`sm:w-4 sm:h-4 ${isLoading ? 'animate-pulse' : ''}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ---------------------------
   // RENDER
@@ -179,15 +373,17 @@ export const ChatWidget: React.FC<{}> = () => {
 
                         <div className={`max-w-[85%] sm:max-w-[70%] ${message.sender === 'user' ? 'order-1' : ''}`}>
                           <div
-                            className={`p-3 sm:p-4 rounded-2xl text-left text-xs sm:text-sm ${
-                              message.sender === 'user'
+                            className={`p-3 sm:p-4 rounded-2xl text-left text-xs sm:text-sm ${message.sender === 'user'
                                 ? 'bg-[#182978] text-white rounded-br-md'
                                 : message.isSystemMessage
-                                ? 'bg-gradient-to-r from-[#18297810] to-[#14205F10] text-gray-800 rounded-bl-md border border-[#182978] shadow-sm'
-                                : 'bg-white text-gray-800 rounded-bl-md border border-gray-200 shadow-sm'
-                            }`}
+                                  ? 'bg-gradient-to-r from-[#18297810] to-[#14205F10] text-gray-800 rounded-bl-md border border-[#182978] shadow-sm'
+                                  : 'bg-white text-gray-800 rounded-bl-md border border-gray-200 shadow-sm'
+                              }`}
                           >
                             <div className="leading-relaxed" dangerouslySetInnerHTML={{ __html: formatMessage(message.text) }} />
+                            {message.sender === 'bot' && detectSchedulingIntent(message.text) && (
+                              <ScheduleMeetingButton />
+                            )}
                           </div>
 
                           {/* NOTE: Action buttons removed per Derek */}
@@ -303,7 +499,7 @@ export const ChatWidget: React.FC<{}> = () => {
   }
 
   return (
-    <div className={`fixed bottom-6 right-6 rounded-2xl shadow-2xl z-50 transition-all duration-300 overflow-hidden ${isMinimized ? 'w-[360px] h-[580px]' : 'h-[600px] w-96'}`} style={{background: 'transparent'}}>
+    <div className={`fixed bottom-6 right-6 rounded-2xl shadow-2xl z-50 transition-all duration-300 overflow-hidden ${isMinimized ? 'w-[360px] h-[580px]' : 'h-[600px] w-96'}`} style={{ background: 'transparent' }}>
       {/* Minimized View */}
       {isMinimized ? (
         <div className="relative w-[360px] h-[580px] rounded-2xl overflow-hidden shadow-2xl flex flex-col text-white">
@@ -345,7 +541,7 @@ export const ChatWidget: React.FC<{}> = () => {
           </div>
 
           {/* Footer */}
-          <div className="mt-auto text-gray-700 pt-10 pb-4 px-4" style={{background: 'transparent'}}>
+          <div className="mt-auto text-gray-700 pt-10 pb-4 px-4" style={{ background: 'transparent' }}>
             {/* NOTE: Removed “feature tabs” that might feel like static options. Kept lightweight brand line. */}
             <div className="border-t pt-2">
               <p className="text-[11px] text-gray-500 text-center tracking-wide">
@@ -409,15 +605,17 @@ export const ChatWidget: React.FC<{}> = () => {
 
                     <div className={`max-w-[75%] ${message.sender === 'user' ? 'order-1' : ''}`}>
                       <div
-                        className={`p-4 rounded-2xl shadow-sm text-left ${
-                          message.sender === 'user'
+                        className={`p-4 rounded-2xl shadow-sm text-left ${message.sender === 'user'
                             ? 'bg-blue-600 text-white rounded-br-md'
                             : message.isSystemMessage
-                            ? 'bg-gradient-to-r from-emerald-50 to-blue-50 text-gray-800 rounded-bl-md border border-emerald-200'
-                            : 'bg-gray-50 text-gray-800 rounded-bl-md border border-gray-100'
-                        }`}
+                              ? 'bg-gradient-to-r from-emerald-50 to-blue-50 text-gray-800 rounded-bl-md border border-emerald-200'
+                              : 'bg-gray-50 text-gray-800 rounded-bl-md border border-gray-100'
+                          }`}
                       >
                         <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: formatMessage(message.text) }} />
+                        {message.sender === 'bot' && detectSchedulingIntent(message.text) && (
+                          <ScheduleMeetingButton />
+                        )}
                       </div>
 
                       {/* NOTE: Action buttons removed per Derek */}
