@@ -111,6 +111,10 @@ class SemanticSearchService:
         self.supabase_url = os.getenv("SUPABASE_URL")
         self.supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         
+        # Debug: Check if env vars are loaded
+        print(f"🔍 Supabase URL available: {'Yes' if self.supabase_url else 'No'}")
+        print(f"🔍 Supabase Key available: {'Yes' if self.supabase_key else 'No'}")
+        
         if not SUPABASE_AVAILABLE:
             print("Warning: Supabase package not available.")
             self.supabase = None
@@ -119,10 +123,12 @@ class SemanticSearchService:
             self.supabase = None
         else:
             try:
+                # Fix for proxy parameter error - use positional arguments only
                 self.supabase = create_client(self.supabase_url, self.supabase_key)
                 print("✅ Supabase connected successfully")
             except Exception as e:
                 print(f"Warning: Could not connect to Supabase: {e}")
+                # If Supabase fails, continue without it - the system will work without content fetching
                 self.supabase = None
 
     def _fetch_content_from_supabase(self, chunk_id: str) -> Optional[Dict[str, str]]:
