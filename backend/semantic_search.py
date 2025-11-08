@@ -125,6 +125,49 @@ class SemanticSearchService:
                 print(f"Warning: Could not connect to Supabase: {e}")
                 self.supabase = None
 
+    def _fetch_content_from_supabase(self, chunk_id: str) -> Optional[Dict[str, str]]:
+        """
+        Fetch actual document content from Supabase using the chunk ID.
+        Returns the content and title for the chunk.
+        """
+        if not self.supabase:
+            return None
+            
+        try:
+            # First get the chunk content and document_id
+            chunk_response = self.supabase.table("document_chunks").select("content, document_id").eq("id", chunk_id).execute()
+            
+            if not chunk_response.data or len(chunk_response.data) == 0:
+                return None
+                
+            chunk_data = chunk_response.data[0]
+            content = chunk_data.get("content", "")
+            document_id = chunk_data.get("document_id", "")
+            
+            # Now get the document title if we have a document_id
+            title = "HuddleUp Knowledge Base"
+            if document_id:
+                try:
+                    doc_response = self.supabase.table("documents").select("title, url").eq("id", document_id).execute()
+                    if doc_response.data and len(doc_response.data) > 0:
+                        doc_data = doc_response.data[0]
+                        if doc_data.get("title"):
+                            title = doc_data["title"]
+                        elif doc_data.get("url"):
+                            title = f"HuddleUp - {doc_data['url']}"
+                except Exception as doc_e:
+                    print(f"⚠️ Could not fetch document title for {document_id}: {doc_e}")
+            
+            return {
+                "content": content,
+                "title": title
+            }
+                
+        except Exception as e:
+            print(f"❌ ERROR: Could not fetch content from Supabase for chunk {chunk_id}: {str(e)}")
+            
+        return None
+
     def semantic_search(self, query: str, similarity_threshold: float = 0.4, top_k: int = 5) -> Dict:
         """Perform semantic search using Pinecone knowledge base"""
         print(f"🔍 SOURCE: Starting semantic search with query: '{query}'")
@@ -141,6 +184,13 @@ class SemanticSearchService:
             # Generate embedding for the query
             query_embedding = self.embedding_service.get_embedding(query)
             
+            # Adjust similarity threshold for pricing queries since they often have lower similarity
+            adjusted_threshold = similarity_threshold
+            pricing_keywords = ['price', 'pricing', 'cost', 'plan', 'plans', '$', 'fee', 'subscription', 'paid']
+            if any(keyword in query.lower() for keyword in pricing_keywords):
+                adjusted_threshold = max(0.1, similarity_threshold - 0.2)  # Lower threshold for pricing
+                print(f"🏷️ SOURCE: Pricing query detected, adjusted threshold to {adjusted_threshold}")
+            
             print(f"🔎 SOURCE: Searching Pinecone index")
             # Search Pinecone index
             search_results = self.pinecone_index.query(
@@ -154,7 +204,7 @@ class SemanticSearchService:
             # Filter results by similarity threshold and enrich content when missing
             filtered_results = []
             for match in search_results.matches:
-                if match.score >= similarity_threshold:
+                if match.score >= adjusted_threshold:
                     metadata = match.metadata or {}
                     result = {
                         "id": match.id,
@@ -167,19 +217,36 @@ class SemanticSearchService:
                         "text": metadata.get("text", "")
                     }
 
-                    # If content/text is missing, attempt to enrich from metadata or provide fallback
+                    # If content/text is missing, try to fetch actual content from Supabase using the chunk ID
                     if not result["content"] and not result["text"]:
-                        # Try to use document_id to create meaningful content
                         doc_id = metadata.get("document_id", "")
                         chunk_index = metadata.get("chunk_index", 0)
                         
-                        # Provide a fallback content based on the match
-                        if doc_id:
-                            result["content"] = f"Knowledge base entry from document {doc_id}, section {chunk_index}. This entry matches your query about '{query}' with similarity score {match.score:.3f}."
-                            result["title"] = f"HuddleUp Knowledge Base - Document {doc_id}"
+                        # Try to fetch actual content from Supabase using the Pinecone chunk ID
+                        actual_content = self._fetch_content_from_supabase(match.id)
+                        
+                        if actual_content:
+                            result["content"] = actual_content["content"]
+                            result["title"] = actual_content.get("title", "HuddleUp Knowledge Base")
+                            print(f"✅ SOURCE: Retrieved actual content from Supabase for ID {match.id}")
                         else:
-                            result["content"] = f"Relevant knowledge base entry matching your query '{query}' with similarity score {match.score:.3f}."
-                            result["title"] = "HuddleUp Knowledge Base Entry"
+                            # Fallback to generic messages if we can't fetch content
+                            if any(keyword in query.lower() for keyword in pricing_keywords):
+                                # For pricing queries, indicate we found relevant pricing info but need to connect to Derek
+                                if doc_id:
+                                    result["content"] = f"I found pricing and plan information in our knowledge base (Document: {doc_id}, Section: {chunk_index}), but I don't have access to display the specific pricing details. Derek can provide you with accurate, up-to-date pricing information tailored to your team's needs."
+                                    result["title"] = "HuddleUp Pricing Information"
+                                else:
+                                    result["content"] = "I found relevant pricing information in our knowledge base, but I don't have access to display the specific pricing details. Derek can provide you with accurate, up-to-date pricing information tailored to your team's needs."
+                                    result["title"] = "HuddleUp Pricing Information"
+                            else:
+                                # For general queries, provide generic fallback
+                                if doc_id:
+                                    result["content"] = f"This is relevant information from our knowledge base (Document: {doc_id}, Section: {chunk_index}) that matches your query about '{query}'."
+                                    result["title"] = f"HuddleUp Knowledge Base - Document {doc_id}"
+                                else:
+                                    result["content"] = f"This is relevant information from our HuddleUp knowledge base that matches your query about '{query}'."
+                                    result["title"] = "HuddleUp Knowledge Base Entry"
                     
                     # Ensure we have some content to work with
                     if not result["content"] and not result["text"]:
