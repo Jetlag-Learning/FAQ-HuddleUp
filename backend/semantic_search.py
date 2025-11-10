@@ -154,13 +154,11 @@ class SemanticSearchService:
             title = "HuddleUp Knowledge Base"
             if document_id:
                 try:
-                    doc_response = self.supabase.table("documents").select("title, url").eq("id", document_id).execute()
+                    doc_response = self.supabase.table("documents").select("title").eq("id", document_id).execute()
                     if doc_response.data and len(doc_response.data) > 0:
                         doc_data = doc_response.data[0]
                         if doc_data.get("title"):
                             title = doc_data["title"]
-                        elif doc_data.get("url"):
-                            title = f"HuddleUp - {doc_data['url']}"
                 except Exception as doc_e:
                     print(f"⚠️ Could not fetch document title for {document_id}: {doc_e}")
             

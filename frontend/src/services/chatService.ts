@@ -29,15 +29,39 @@ export const chatService = {
       } else {
         throw new Error(response.data.error || 'Failed to get response');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending discovery message:', error);
+      console.error('Error details:', error);
+      console.error('Error type:', typeof error);
       
-      // Fallback responses for demo purposes
-      if (error instanceof Error && error.message.includes('Network Error')) {
+      // Log more details about the error
+      if (error.isAxiosError || error.response) {
+        console.error('Axios error - Status:', error.response?.status);
+        console.error('Axios error - Data:', error.response?.data);
+        console.error('Axios error - Message:', error.message);
+        console.error('Request URL:', error.config?.url);
+        console.error('Request baseURL:', error.config?.baseURL);
+      }
+      
+      // Check if it's a CORS or connection error
+      const errorMessage = error.message || '';
+      const isNetworkError = errorMessage.includes('Network Error') || 
+                           errorMessage.includes('ERR_NETWORK') ||
+                           errorMessage.includes('Failed to fetch') ||
+                           error.code === 'ERR_NETWORK';
+      
+      console.log('Is network error?', isNetworkError);
+      console.log('Error message:', errorMessage);
+      
+      // Use fallback only for actual network errors
+      if (isNetworkError) {
+        console.log('Using fallback response due to network connectivity issue');
         return this.getFallbackDiscoveryResponse(message);
       }
       
-      throw new Error('Failed to send message. Please try again.');
+      // For other errors, try to return the actual error response or re-throw
+      console.log('Not a network error - checking for API response');
+      throw new Error(`API Error: ${errorMessage}`);
     }
   },
 

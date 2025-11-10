@@ -389,6 +389,36 @@ Please provide an enhanced response that addresses the user's question using the
                 "actions": []
             }
         
+        # Get semantic search results for context
+        knowledge_context = ""
+        if semantic_search_service:
+            try:
+                print(f"🔍 SOURCE: Getting semantic search context for: {question}")
+                search_results = semantic_search_service.semantic_search(question, similarity_threshold=0.3)
+                
+                print(f"🔍 DEBUG: Search results success: {search_results.get('success')}")
+                print(f"🔍 DEBUG: Number of results: {len(search_results.get('results', []))}")
+                
+                if search_results.get("success") and search_results.get("results"):
+                    knowledge_context = "KNOWLEDGE BASE CONTEXT:\n"
+                    for i, result in enumerate(search_results["results"][:3]):
+                        content = result.get('content') or result.get('text') or ''
+                        print(f"🔍 DEBUG: Result {i+1} content length: {len(content) if content else 0}")
+                        if content and len(content.strip()) > 20:
+                            knowledge_context += f"\nResult {i+1} (similarity: {result.get('similarity', 0):.3f}):\n{content.strip()}\n"
+                            print(f"🔍 DEBUG: Added content: {content[:100]}...")
+                    knowledge_context += "\n"
+                    print(f"✅ SOURCE: Added {len(search_results['results'])} knowledge base results to context")
+                    print(f"🔍 DEBUG: Final context length: {len(knowledge_context)}")
+                else:
+                    print(f"⚠️ SOURCE: No semantic search results found")
+                    print(f"🔍 DEBUG: Search results: {search_results}")
+            except Exception as e:
+                print(f"❌ SOURCE: Semantic search error: {e}")
+                import traceback
+                traceback.print_exc()
+                knowledge_context = ""
+        
         try:
             # Build conversation context
             context_str = ""
@@ -420,7 +450,7 @@ Please provide an enhanced response that addresses the user's question using the
             
             system_prompt = f"""You are the HuddleUp AI Assistant conducting discovery conversations.
 
-{context_str}{profile_str}
+{knowledge_context}{context_str}{profile_str}
 
 CRITICAL CONVERSATION CONTINUITY RULES:
 1. ALWAYS review the conversation context above before responding
@@ -431,6 +461,12 @@ CRITICAL CONVERSATION CONTINUITY RULES:
 6. If user asks follow-up questions, answer them directly without repeating introductions
 7. Build naturally on the conversation - NEVER restart or repeat previous questions
 8. If user asks about their processes, give concrete examples of how HuddleUp improves common processes
+
+CRITICAL "YES" RESPONSE HANDLING:
+- If user says "yes" or "sure" or "I'd like that" after you offered examples, immediately share 2-3 specific detailed examples from the SPECIFIC EXAMPLES section below
+- If user says "yes" or "sure" or "I'd like that" after you offered scheduling, help them schedule with clear next steps
+- If user gives a simple "yes" without context, look at previous assistant message to understand what they're agreeing to
+- NEVER respond with vague acknowledgments like "That's great to hear!" - take action based on what they agreed to
 
 SPECIFIC QUESTION HANDLING:
 - "How could my processes work better in HuddleUp?" → Explain 3-4 specific process improvements
@@ -443,11 +479,12 @@ SPECIFIC QUESTION HANDLING:
 PRICING QUESTION HANDLING - CRITICAL INSTRUCTIONS:
 When users ask about pricing, cost, or fees:
 1. IMMEDIATELY check the KNOWLEDGE BASE CONTEXT section above for any pricing numbers, plans, or cost information
-2. If you find specific pricing (like "$X per month", "starting at $X", pricing tiers, etc.) in the knowledge base context, state those EXACT numbers and details
-3. If the knowledge base context contains NO specific pricing numbers, respond with: "I don't have the current pricing details in my knowledge base. Let me connect you with Derek who can provide you with accurate, up-to-date pricing information tailored to your team's needs."
-4. NEVER use generic phrases like "flexible pricing" or "cost-effective solutions" - either give specific numbers from knowledge base OR admit you don't have the pricing details
-5. ALWAYS end pricing responses with scheduling language like "Would you like to schedule a time to discuss pricing?" or "I'd be happy to help you schedule a meeting with Derek to go over pricing options"
-6. If you do find pricing in the knowledge base, always mention it may vary based on team size and specific needs, then offer to schedule a call for personalized pricing
+2. If you find specific pricing information in the knowledge base context (like pricing plans, costs, fees, etc.), ALWAYS use that information to provide a comprehensive answer about HuddleUp's pricing
+3. Present the pricing information clearly, including all available plans (Free, Silver, Gold, Enterprise) and their features
+4. Be specific about what's included in each plan and any user limits or features
+5. Only mention Derek or scheduling if the user explicitly asks to speak with someone or wants personalized recommendations after you've provided the pricing details
+6. If the knowledge base context contains NO pricing information whatsoever, then you may mention connecting with Derek
+7. NEVER default to Derek when pricing information is available in the knowledge base context
 
 ENGAGEMENT PROGRESSION:
 - Query Count: {query_count}
@@ -671,10 +708,14 @@ PRICING RESPONSE FORMAT:
             )
             print(f"✅ SOURCE: Received response from OpenAI")
             
-            # Try to parse JSON response
+            # Try to parse JSON response with better error handling
             try:
                 import json
-                result = json.loads(response.choices[0].message.content.strip())
+                raw_response = response.choices[0].message.content.strip()
+                print(f"🔍 DEBUG: Raw OpenAI response length: {len(raw_response)}")
+                print(f"🔍 DEBUG: Raw response preview: {raw_response[:200]}...")
+                
+                result = json.loads(raw_response)
                 print(f"✅ SOURCE: Successfully parsed OpenAI JSON response")
                 
                 # Validate that required fields exist
@@ -708,10 +749,36 @@ PRICING RESPONSE FORMAT:
                     
                 return result
                 
-            except json.JSONDecodeError:
-                print(f"⚠️ SOURCE: Failed to parse OpenAI JSON, using fallback logic")
-                # Fallback if JSON parsing fails
+            except json.JSONDecodeError as e:
+                print(f"⚠️ SOURCE: Failed to parse OpenAI JSON: {e}")
+                print(f"🔍 DEBUG: Raw response that failed to parse: {response.choices[0].message.content}")
+                
+                # Fallback: Use the raw response text and generate appropriate actions
                 response_text = response.choices[0].message.content.strip()
+                
+                # If the response contains pricing/knowledge base content, use it as-is
+                # If it seems to be asking for Derek scheduling, try to use knowledge_context instead
+                if knowledge_context and ("derek" in response_text.lower() or "schedule" in response_text.lower()):
+                    # Extract the first meaningful piece of content from knowledge context
+                    lines = knowledge_context.split('\n')
+                    content_start = -1
+                    for i, line in enumerate(lines):
+                        if 'Result 1' in line and 'similarity:' in line:
+                            content_start = i + 1
+                            break
+                    
+                    if content_start > 0 and content_start < len(lines):
+                        # Extract the actual content after "Result 1" line
+                        content_lines = []
+                        for line in lines[content_start:]:
+                            if line.strip() and not line.startswith('Result '):
+                                content_lines.append(line.strip())
+                            elif line.startswith('Result '):
+                                break
+                        
+                        if content_lines:
+                            response_text = ' '.join(content_lines)[:800] + "..."
+                            print(f"✅ SOURCE: Using knowledge base content instead of Derek fallback")
                 
                 # Determine actions based on engagement level and user profile
                 if query_count >= 5:
