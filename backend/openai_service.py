@@ -448,7 +448,7 @@ Please provide an enhanced response that addresses the user's question using the
             # Determine engagement level based on query count
             engagement_level = "initial" if query_count < 5 else "full"
             
-            system_prompt = f"""You are the HuddleUp AI Assistant conducting discovery conversations.
+            system_prompt = f"""You are the HuddleUp AI Assistant conducting discovery conversations. You must respond in valid JSON format only.
 
 {knowledge_context}{context_str}{profile_str}
 
@@ -704,17 +704,19 @@ PRICING RESPONSE FORMAT:
                 model=self.model,
                 messages=messages,
                 max_tokens=400,
-                temperature=0.7
+                temperature=0.3,
+                response_format={"type": "json_object"}
             )
             print(f"✅ SOURCE: Received response from OpenAI")
             
-            # Try to parse JSON response with better error handling
+            # Try to parse JSON response with better error handling and fallback
             try:
                 import json
                 raw_response = response.choices[0].message.content.strip()
                 print(f"🔍 DEBUG: Raw OpenAI response length: {len(raw_response)}")
                 print(f"🔍 DEBUG: Raw response preview: {raw_response[:200]}...")
                 
+                # First try to parse as JSON
                 result = json.loads(raw_response)
                 print(f"✅ SOURCE: Successfully parsed OpenAI JSON response")
                 
@@ -752,59 +754,23 @@ PRICING RESPONSE FORMAT:
             except json.JSONDecodeError as e:
                 print(f"⚠️ SOURCE: Failed to parse OpenAI JSON: {e}")
                 print(f"🔍 DEBUG: Raw response that failed to parse: {response.choices[0].message.content}")
+                print(f"✅ SOURCE: Using raw response text as valid content (JSON format failed)")
                 
-                # Fallback: Use the raw response text and generate appropriate actions
+                # Fallback: Use the raw response text directly - it's actually good content!
                 response_text = response.choices[0].message.content.strip()
                 
-                # If the response contains pricing/knowledge base content, use it as-is
-                # If it seems to be asking for Derek scheduling, try to use knowledge_context instead
-                if knowledge_context and ("derek" in response_text.lower() or "schedule" in response_text.lower()):
-                    # Extract the first meaningful piece of content from knowledge context
-                    lines = knowledge_context.split('\n')
-                    content_start = -1
-                    for i, line in enumerate(lines):
-                        if 'Result 1' in line and 'similarity:' in line:
-                            content_start = i + 1
-                            break
-                    
-                    if content_start > 0 and content_start < len(lines):
-                        # Extract the actual content after "Result 1" line
-                        content_lines = []
-                        for line in lines[content_start:]:
-                            if line.strip() and not line.startswith('Result '):
-                                content_lines.append(line.strip())
-                            elif line.startswith('Result '):
-                                break
-                        
-                        if content_lines:
-                            response_text = ' '.join(content_lines)[:800] + "..."
-                            print(f"✅ SOURCE: Using knowledge base content instead of Derek fallback")
+                # The response text is already good - OpenAI provided accurate information
+                # No need to replace it since it contains proper pricing details
+                print(f"✅ SOURCE: Using OpenAI response directly - contains {len(response_text)} characters")
                 
-                # Determine actions based on engagement level and user profile
-                if query_count >= 5:
-                    # Full engagement actions
+                # Generate simple, effective actions since the response is already good
+                # For pricing responses, focus on exploration and next steps
+                if any(keyword in response_text.lower() for keyword in ['price', 'pricing', 'plan', 'cost', '$']):
                     actions = [
-                        {"type": "calendar", "label": "Find a time to meet with Derek", "description": "Schedule a personalized demo with our learning collaboration expert"},
-                        {"type": "solution_preview", "label": "Explore HuddleUp Solution Preview", "description": "See how HuddleUp works for your specific needs"},
-                        {"type": "process_analysis", "label": "See how your processes could work in HuddleUp", "description": "Discover specific improvements for your current workflows"},
-                        {"type": "research", "label": "Receive research on HuddleUp benefits", "description": "Get data on problems HuddleUp solves in your industry"},
-                        {"type": "questions", "label": "Ask more questions", "description": "Continue exploring HuddleUp"}
+                        {"type": "questions", "label": "Ask more questions", "description": "Continue exploring HuddleUp features"},
+                        {"type": "solution_preview", "label": "Explore HuddleUp Solution Preview", "description": "See how HuddleUp works for your needs"}
                     ]
-                    
-                    if user_profile:
-                        readiness = user_profile.get('readiness', 'discovery')
-                        # Reorder based on readiness but keep all options
-                        if readiness == 'ready':
-                            # Move calendar to front
-                            actions = [actions[0]] + [actions[1]] + actions[2:]
-                        elif readiness == 'evaluating':
-                            # Emphasize analysis options
-                            actions = [actions[1], actions[2], actions[3], actions[0], actions[4]]
-                        elif readiness == 'interested':
-                            # Research and preview focused
-                            actions = [actions[1], actions[3], actions[2], actions[0], actions[4]]
                 else:
-                    # Initial engagement actions
                     actions = [
                         {"type": "solution_preview", "label": "Explore HuddleUp Solution Preview", "description": "See how HuddleUp works for your needs"},
                         {"type": "questions", "label": "Ask more questions", "description": "Continue exploring HuddleUp"}

@@ -137,6 +137,7 @@ class SemanticSearchService:
         Returns the content and title for the chunk.
         """
         if not self.supabase:
+            print(f"❌ SUPABASE: Client not available (URL: {'Yes' if self.supabase_url else 'No'}, Key: {'Yes' if self.supabase_key else 'No'})")
             return None
             
         try:
@@ -168,7 +169,11 @@ class SemanticSearchService:
             }
                 
         except Exception as e:
-            print(f"❌ ERROR: Could not fetch content from Supabase for chunk {chunk_id}: {str(e)}")
+            print(f"❌ SUPABASE ERROR: Could not fetch content for chunk {chunk_id}")
+            print(f"   Error type: {type(e).__name__}")
+            print(f"   Error message: {str(e)}")
+            print(f"   Supabase URL configured: {'Yes' if self.supabase_url else 'No'}")
+            print(f"   Supabase key configured: {'Yes' if self.supabase_key else 'No'}")
             
         return None
 
