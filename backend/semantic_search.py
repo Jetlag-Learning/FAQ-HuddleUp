@@ -126,8 +126,14 @@ class SemanticSearchService:
                 # Fix for proxy parameter error - use positional arguments only
                 self.supabase = create_client(self.supabase_url, self.supabase_key)
                 print("✅ Supabase connected successfully")
+                # Test the connection with a simple query
+                test_result = self.supabase.table("document_chunks").select("id").limit(1).execute()
+                print("✅ Supabase connection tested successfully")
             except Exception as e:
-                print(f"Warning: Could not connect to Supabase: {e}")
+                print(f"❌ SUPABASE CONNECTION ERROR: {e}")
+                print(f"   Error type: {type(e).__name__}")
+                print(f"   URL: {self.supabase_url[:50]}...")
+                print(f"   Key length: {len(self.supabase_key) if self.supabase_key else 0}")
                 # If Supabase fails, continue without it - the system will work without content fetching
                 self.supabase = None
 
