@@ -123,91 +123,14 @@ class SemanticSearchService:
             self.supabase = None
         else:
             try:
-                # Multiple initialization strategies for different Supabase library versions
-                supabase_client = None
-                
-                # Strategy 1: Try standard library approach first
-                try:
-                    # Try with only required parameters
-                    from supabase import create_client as orig_create_client
-                    supabase_client = orig_create_client(self.supabase_url, self.supabase_key)
-                    print("✅ Supabase connected with standard approach")
-                    
-                except Exception as std_error:
-                    print(f"⚠️ Standard approach failed: {std_error}")
-                    
-                    # Strategy 2: Use direct HTTP client to bypass library issues
-                    print("🔄 Using direct HTTP approach to bypass library compatibility issues")
-                    try:
-                        # Create a minimal wrapper that just does HTTP requests
-                        class MinimalSupabaseClient:
-                            def __init__(self, url, key):
-                                self.url = url.rstrip('/')
-                                self.key = key
-                                self.headers = {
-                                    'apikey': key,
-                                    'Authorization': f'Bearer {key}',
-                                    'Content-Type': 'application/json'
-                                }
-                            
-                            def table(self, table_name):
-                                return MinimalTable(self.url, self.headers, table_name)
-                        
-                        class MinimalTable:
-                            def __init__(self, base_url, headers, table_name):
-                                self.base_url = base_url
-                                self.headers = headers  
-                                self.table_name = table_name
-                            
-                            def select(self, columns="*"):
-                                return MinimalQuery(self.base_url, self.headers, self.table_name, columns)
-                        
-                        class MinimalQuery:
-                            def __init__(self, base_url, headers, table_name, columns):
-                                self.base_url = base_url
-                                self.headers = headers
-                                self.table_name = table_name
-                                self.columns = columns
-                                self.filters = []
-                            
-                            def eq(self, column, value):
-                                self.filters.append(f"{column}=eq.{value}")
-                                return self
-                            
-                            def limit(self, count):
-                                self.filters.append(f"limit={count}")
-                                return self
-                            
-                            def execute(self):
-                                try:
-                                    import requests
-                                    url = f"{self.base_url}/rest/v1/{self.table_name}"
-                                    if self.columns != "*":
-                                        url += f"?select={self.columns}"
-                                    if self.filters:
-                                        separator = "&" if "?" in url else "?"
-                                        url += separator + "&".join(self.filters)
-                                    
-                                    response = requests.get(url, headers=self.headers, timeout=10)
-                                    result_data = response.json() if response.ok else []
-                                    return type('Response', (), {'data': result_data})()
-                                except Exception as req_error:
-                                    print(f"⚠️ HTTP request failed: {req_error}")
-                                    return type('Response', (), {'data': []})()
-                        
-                        supabase_client = MinimalSupabaseClient(self.supabase_url, self.supabase_key)
-                        print("✅ Supabase connected with minimal HTTP client")
-                        
-                    except Exception as minimal_error:
-                        print(f"⚠️ Minimal client failed: {minimal_error}")
-                        supabase_client = None
-                
-                self.supabase = supabase_client
+                # Simple, standard Supabase initialization (version 1.0.3 compatible)
+                from supabase import create_client, Client
+                self.supabase: Client = create_client(self.supabase_url, self.supabase_key)
+                print("✅ Supabase connected successfully")
                 
                 # Test the connection with a simple query
-                if self.supabase:
-                    test_result = self.supabase.table("document_chunks").select("id").limit(1).execute()
-                    print("✅ Supabase connection tested successfully")
+                test_result = self.supabase.table("document_chunks").select("id").limit(1).execute()
+                print("✅ Supabase connection tested successfully")
                 
             except Exception as e:
                 print(f"❌ SUPABASE CONNECTION ERROR: {e}")
