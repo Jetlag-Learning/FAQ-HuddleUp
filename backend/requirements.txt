@@ -10,7 +10,7 @@ google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 google-api-python-client==2.108.0
 pinecone-client==4.1.1
-supabase-py==2.6.0
+supabase==2.24.0
 gunicorn==21.2.0
 cryptography==42.0.0
 numpy==1.24.3
