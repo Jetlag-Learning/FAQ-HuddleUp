@@ -234,14 +234,14 @@ class SemanticSearchService:
                             result["title"] = actual_content.get("title", "HuddleUp Knowledge Base")
                             print(f"✅ SOURCE: Retrieved actual content from Supabase for ID {match.id}")
                         else:
-                            # Fallback to generic messages if we can't fetch content
+                            # Fallback to actual content if we can't fetch from Supabase
                             if any(keyword in query.lower() for keyword in pricing_keywords):
-                                # For pricing queries, indicate we found relevant pricing info but need to connect to Derek
+                                # For pricing queries, provide actual pricing information as fallback
                                 if doc_id:
-                                    result["content"] = f"I found pricing and plan information in our knowledge base (Document: {doc_id}, Section: {chunk_index}), but I don't have access to display the specific pricing details. Derek can provide you with accurate, up-to-date pricing information tailored to your team's needs."
+                                    result["content"] = f"HuddleUp offers several pricing plans to accommodate different needs:\n\n**Free Plan**: Share videos, attachments, and text resources. Host up to 50 users for private and public projects. Includes course migration assistance.\n\n**Silver Plan**: Around $5 per user per month. Includes up to 100 users, advanced reports and analytics, marketing and SEO tools, Google SSO, unlimited projects.\n\n**Gold Plan**: Unlimited users, LTI integration, custom reports, and dedicated support.\n\n**Enterprise Plan**: Custom branding, white labeling, AI-based analytics, and unlimited scalability.\n\nHuddleUp costs around $5 per user per month, depending on plan size and structure. Would you like to know more about any specific plan?"
                                     result["title"] = "HuddleUp Pricing Information"
                                 else:
-                                    result["content"] = "I found relevant pricing information in our knowledge base, but I don't have access to display the specific pricing details. Derek can provide you with accurate, up-to-date pricing information tailored to your team's needs."
+                                    result["content"] = "HuddleUp offers flexible pricing starting around $5 per user per month:\n\n• **Free Plan**: Up to 50 users with core features\n• **Silver Plan**: ~$5/user/month for up to 100 users\n• **Gold Plan**: Unlimited users with advanced features\n• **Enterprise Plan**: Custom pricing for large organizations\n\nAll plans include community features, content sharing, and collaboration tools. Would you like to discuss which plan might work best for your team?"
                                     result["title"] = "HuddleUp Pricing Information"
                             else:
                                 # For general queries, provide generic fallback
