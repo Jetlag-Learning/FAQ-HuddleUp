@@ -123,12 +123,44 @@ class SemanticSearchService:
             self.supabase = None
         else:
             try:
-                # Fix for proxy parameter error - use positional arguments only
-                self.supabase = create_client(self.supabase_url, self.supabase_key)
-                print("✅ Supabase connected successfully")
+                # Multiple initialization strategies for different Supabase library versions
+                supabase_client = None
+                
+                # Strategy 1: Basic initialization (works with most versions)
+                try:
+                    supabase_client = create_client(self.supabase_url, self.supabase_key)
+                    print("✅ Supabase connected with basic initialization")
+                except TypeError as te:
+                    if "proxy" in str(te):
+                        print(f"⚠️ Supabase proxy parameter error: {te}")
+                        # Strategy 2: Try importing Client directly and avoid create_client wrapper
+                        try:
+                            from supabase import Client
+                            supabase_client = Client(self.supabase_url, self.supabase_key)
+                            print("✅ Supabase connected with direct Client initialization")
+                        except Exception as direct_error:
+                            print(f"⚠️ Direct Client init failed: {direct_error}")
+                            # Strategy 3: Try with minimal parameters
+                            try:
+                                import supabase
+                                supabase_client = supabase.create_client(
+                                    supabase_url=self.supabase_url,
+                                    supabase_key=self.supabase_key
+                                )
+                                print("✅ Supabase connected with explicit parameters")
+                            except Exception as param_error:
+                                print(f"⚠️ Explicit parameter init failed: {param_error}")
+                                raise te  # Re-raise original error if all strategies fail
+                    else:
+                        raise te
+                
+                self.supabase = supabase_client
+                
                 # Test the connection with a simple query
-                test_result = self.supabase.table("document_chunks").select("id").limit(1).execute()
-                print("✅ Supabase connection tested successfully")
+                if self.supabase:
+                    test_result = self.supabase.table("document_chunks").select("id").limit(1).execute()
+                    print("✅ Supabase connection tested successfully")
+                
             except Exception as e:
                 print(f"❌ SUPABASE CONNECTION ERROR: {e}")
                 print(f"   Error type: {type(e).__name__}")
