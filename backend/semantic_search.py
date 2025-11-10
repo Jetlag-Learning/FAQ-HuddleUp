@@ -123,7 +123,7 @@ class SemanticSearchService:
             self.supabase = None
         else:
             try:
-                # Simple, standard Supabase initialization (version 1.0.3 compatible)
+                # Standard Supabase initialization (supabase-py==2.6.0 compatible)
                 from supabase import create_client, Client
                 self.supabase: Client = create_client(self.supabase_url, self.supabase_key)
                 print("✅ Supabase connected successfully")
