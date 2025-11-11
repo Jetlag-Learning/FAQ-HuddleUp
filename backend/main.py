@@ -6,6 +6,12 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 
+# 🛑 Fix Render proxy issue - Remove proxy env vars before any client initialization
+os.environ.pop("HTTP_PROXY", None)
+os.environ.pop("HTTPS_PROXY", None)
+os.environ.pop("ALL_PROXY", None)
+print("🔧 Removed proxy environment variables to prevent client initialization errors")
+
 # Import models first
 from models import (
     FAQRequest, FAQResponse, DiscoveryResponse, ActionButton, 

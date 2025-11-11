@@ -4,6 +4,11 @@ from typing import List, Dict, Optional
 from dotenv import load_dotenv
 import numpy as np
 
+# 🛑 Fix Render proxy issue - Remove proxy env vars before any client initialization
+os.environ.pop("HTTP_PROXY", None)
+os.environ.pop("HTTPS_PROXY", None)
+os.environ.pop("ALL_PROXY", None)
+
 load_dotenv()
 
 try:
