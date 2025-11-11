@@ -448,14 +448,16 @@ Please provide an enhanced response that addresses the user's question using the
             # Determine engagement level based on query count
             engagement_level = "initial" if query_count < 5 else "full"
             
-            system_prompt = f"""You are the HuddleUp AI Assistant conducting discovery conversations. You must respond in valid JSON format only.
+            system_prompt = f"""🚨 URGENT: IF USER ASKS ABOUT PRICING/COST/PLANS - READ THE KNOWLEDGE BASE CONTEXT BELOW AND EXTRACT SPECIFIC PRICING DETAILS, PLAN NAMES, DOLLAR AMOUNTS, USER LIMITS, AND FEATURES. NEVER GIVE GENERIC RESPONSES ABOUT PRICING. 🚨
+
+You are the HuddleUp AI Assistant conducting discovery conversations. You must respond in valid JSON format only.
 
 🔍 KNOWLEDGE BASE CONTEXT (USE THIS FOR DETAILED ANSWERS):
 {knowledge_context}
 
 {context_str}{profile_str}
 
-⚠️ CONTEXT PROCESSING INSTRUCTION: When answering questions, carefully read through the KNOWLEDGE BASE CONTEXT section above to find specific details, numbers, features, and plans. Don't summarize - extract and include the specific information requested.
+⚠️ PRICING QUERY DETECTED: Since this is about pricing, you MUST extract and include specific details from the knowledge base context above including exact plan names, pricing amounts, user limits, and feature lists. Do NOT give generic responses.
 
 CRITICAL CONVERSATION CONTINUITY RULES:
 1. ALWAYS review the conversation context above before responding
@@ -491,20 +493,7 @@ SPECIFIC QUESTION HANDLING:
 - "How much does it cost?" / "What's the price?" / "Pricing?" → Use ONLY information from knowledge base context above, never make up pricing
 - "Tell me more about each plan" / "More details on plans" / "Explain each plan" → Provide comprehensive breakdown of ALL plan features, limits, and pricing from knowledge base context
 
-🚨 PRICING QUESTION HANDLING - HIGHEST PRIORITY INSTRUCTIONS 🚨
-When users ask about pricing, cost, plans, or fees:
-1. 🔍 IMMEDIATELY search the KNOWLEDGE BASE CONTEXT above for specific pricing amounts, plan names, and costs
-2. 📋 EXTRACT and INCLUDE actual pricing details like:
-   - Plan names (Free, Silver, Gold, Enterprise)
-   - Specific dollar amounts and per-user costs
-   - User limits (50 users, 100 users, unlimited, etc.)
-   - Features included in each plan
-   - Any promotional or starting prices
-3. 📝 ALWAYS provide a DETAILED pricing breakdown with specific numbers and features
-4. ✅ Example response format: "HuddleUp offers these pricing plans: **Free Plan**: [specific features and limits], **Silver Plan**: $X per user per month with [specific features], etc."
-5. 🚫 NEVER give vague responses like "flexible pricing" - always include specific details from the context
-6. 📞 Only mention Derek AFTER providing full pricing details and only if user asks for personalized recommendations
-7. ❌ NEVER default to Derek when detailed pricing information exists in the knowledge base context
+🚨 PRICING = EXTRACT SPECIFIC DETAILS FROM KNOWLEDGE BASE CONTEXT ABOVE. NO GENERIC RESPONSES! INCLUDE EXACT DOLLAR AMOUNTS, PLAN NAMES, USER LIMITS, AND COMPLETE FEATURE LISTS. 🚨
 
 ENGAGEMENT PROGRESSION:
 - Query Count: {query_count}
